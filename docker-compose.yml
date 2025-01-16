@@ -1,0 +1,52 @@
+# version: '3.9'   # decides which docker compose version to use (not necessary to mention unless want to use specific version)
+
+name: Django_Mysql_Project
+# if name not specified it will take hostapp project name
+
+volumes:
+  mysql_data:      #This is syntax for adding volume for mysql
+    driver: local
+
+
+services:
+  mysql:
+    image: mysql:8.0.40
+    container_name: mysql_container
+    ports:
+      - "33333:3306"
+    environment:
+      MYSQL_DATABASE: My_database
+      MYSQL_ROOT_PASSWORD: root
+    volumes:                              # This keeps database persistant in your docker volumes
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 1m30s
+      timeout: 20s
+      retries: 5
+      start_period: 30s
+
+  
+  backend:
+    # platform: linux/amd64   # Uses linux/amd64 by default
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: django_container
+
+    working_dir: /app
+    command: ["bash", "-c", "python manage.py runserver 0.0.0.0:8000"]
+    volumes:
+      - .:/app
+    ports:
+     - "8000:8000"
+    environment:
+      - DB_NAME=My_database
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_HOST=mysql
+      - DB_PORT=3306
+    
+    depends_on:
+      mysql:
+        condition: service_healthy
